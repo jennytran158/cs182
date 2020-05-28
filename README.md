@@ -1,3 +1,7 @@
+I did this project in a group of 3 people.  To read my part in the report click [here](https://github.com/jennytran158/cs182/blob/master/182bert.pdf)!
+
+To see the whole report click [here](https://github.com/jennytran158/cs182/blob/master/182.pdf) and click [github](https://github.com/vsrin1/CS182-Final-Project) for other model files in the report. 
+
 Inference using initial model:
 1. Download model at:
 https://drive.google.com/drive/u/0/folders/11jn8qVLVRMjwmv-REYTimGLYdsn76nAs
