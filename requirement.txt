@@ -1,0 +1,6 @@
+tensorflow_hub==0.6.0
+bert-tensorflow
+pathlib
+tensorflow==1.15
+datetime
+pandas

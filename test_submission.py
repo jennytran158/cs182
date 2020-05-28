@@ -1,4 +1,4 @@
-from sklearn.model_selection import train_test_split
+import json, sys
 import pandas as pd
 import tensorflow as tf
 import tensorflow_hub as hub
@@ -11,34 +11,12 @@ from tensorflow import keras
 import os
 import re
 import time
-logger = tf.get_logger()
-logger.propagate = False
-tf.logging.set_verbosity(tf.logging.INFO)
-train_df = pd.read_json('train.jsonl',lines=True).sample(frac=1)
-# train_df = pd.read_json('test.jsonl',lines=True)
-
-
-train, test = train_test_split(train_df, test_size=0.05, random_state=42)
+import numpy as np
+from pathlib import Path
 DATA_COLUMN = 'text'
 LABEL_COLUMN = 'stars'
 label_list = [1,2,3,4,5]
 
-# This is a path to an uncased (all lowercase) version of BERT
-BERT_MODEL_HUB = "https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1"
-
-def create_tokenizer_from_hub_module():
-    """Get the vocab file and casing info from the Hub module."""
-    with tf.Graph().as_default():
-        bert_module = hub.Module(BERT_MODEL_HUB)
-        tokenization_info = bert_module(signature="tokenization_info", as_dict=True)
-        with tf.Session() as sess:
-            vocab_file, do_lower_case = sess.run([tokenization_info["vocab_file"],
-                                            tokenization_info["do_lower_case"]])
-
-    return bert.tokenization.FullTokenizer(
-      vocab_file=vocab_file, do_lower_case=do_lower_case)
-
-tokenizer = create_tokenizer_from_hub_module()
 
 def create_model(is_predicting, input_ids, input_mask, segment_ids, labels,
                  num_labels):
@@ -157,89 +135,114 @@ def model_fn_builder(num_labels, learning_rate, num_train_steps,
 
     # Return the actual model function in the closure
     return model_fn
-# We'll set sequences to be at most 128 tokens long.
+    # Return the actual model function in the closure
+
 MAX_SEQ_LENGTH = 128
-
-# Use the InputExample class from BERT's run_classifier code to create examples from the data
-train_InputExamples = train_df.apply(lambda x: bert.run_classifier.InputExample(guid=None, # Globally unique ID for bookkeeping, unused in this example
-                                                                   text_a = x[DATA_COLUMN],
-                                                                   text_b = None,
-                                                                   label = x[LABEL_COLUMN]), axis = 1)
-
-
-
-# Convert our train and test features to InputFeatures that BERT understands.
-train_features = bert.run_classifier.convert_examples_to_features(train_InputExamples, label_list, MAX_SEQ_LENGTH, tokenizer)
-
-test_InputExamples = test.apply(lambda x: bert.run_classifier.InputExample(guid=None,
-                                                                   text_a = x[DATA_COLUMN],
-                                                                   text_b = None,
-                                                                   label = x[LABEL_COLUMN]), axis = 1)
-
-test_features = bert.run_classifier.convert_examples_to_features(test_InputExamples, label_list, MAX_SEQ_LENGTH, tokenizer)
-# Compute train and warmup steps from batch size
-# These hyperparameters are copied from this colab notebook (https://colab.sandbox.google.com/github/tensorflow/tpu/blob/master/tools/colab/bert_finetuning_with_cloud_tpus.ipynb)
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 LEARNING_RATE = 2e-5
-NUM_TRAIN_EPOCHS = 2.0
+NUM_TRAIN_EPOCHS = 3.0
 # Warmup is a period of time where hte learning rate
 # is small and gradually increases--usually helps training.
 WARMUP_PROPORTION = 0.1
 # Model configs
-SAVE_CHECKPOINTS_STEPS = 500
-SAVE_SUMMARY_STEPS = 100
+SAVE_CHECKPOINTS_STEPS = 1
+SAVE_SUMMARY_STEPS = 1
 # Compute # train and warmup steps from batch size
-# train1_step = 30013
-train1_step = 0
+num_train_steps = 1
+num_warmup_steps = 1
+BERT_MODEL_HUB = "https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1"
 
+def create_tokenizer_from_hub_module():
+    """Get the vocab file and casing info from the Hub module."""
+    with tf.Graph().as_default():
+        bert_module = hub.Module(BERT_MODEL_HUB)
+        tokenization_info = bert_module(signature="tokenization_info", as_dict=True)
+        with tf.Session() as sess:
+            vocab_file, do_lower_case = sess.run([tokenization_info["vocab_file"],
+                                            tokenization_info["do_lower_case"]])
 
-num_train_steps = int(len(train_features) / BATCH_SIZE * NUM_TRAIN_EPOCHS) +train1_step
-num_warmup_steps = int(num_train_steps * WARMUP_PROPORTION)
-# Specify outpit directory and number of checkpoint steps to save
+    return bert.tokenization.FullTokenizer(
+      vocab_file=vocab_file, do_lower_case=do_lower_case)
+
+tokenizer = create_tokenizer_from_hub_module()
 if not(os.path.exists('bert')):
         os.makedirs('bert')
-model_dir = "train_ordinal"
-# model_dir = "test"
-
-model_dir = os.path.join('bert', model_dir)
-if not(os.path.exists(model_dir)):
-    os.makedirs(model_dir)
-run_config = tf.estimator.RunConfig(
-    model_dir=model_dir,
-    save_summary_steps=SAVE_SUMMARY_STEPS,
-    save_checkpoints_steps=SAVE_CHECKPOINTS_STEPS,
-    log_step_count_steps = SAVE_SUMMARY_STEPS)
-model_fn = model_fn_builder(
-  num_labels=len(label_list),
-  learning_rate=LEARNING_RATE,
-  num_train_steps=num_train_steps,
-  num_warmup_steps=num_warmup_steps)
-
-estimator = tf.estimator.Estimator(
-  model_fn=model_fn,
-  config=run_config,
-  params={"batch_size": BATCH_SIZE})
 
 
+MAX_SEQ_LENGTH = 128
+BATCH_SIZE = 32
+LEARNING_RATE = 2e-5
+NUM_TRAIN_EPOCHS = 3.0
+# Warmup is a period of time where hte learning rate
+# is small and gradually increases--usually helps training.
+WARMUP_PROPORTION = 0.1
+# Model configs
+SAVE_CHECKPOINTS_STEPS = 1
+SAVE_SUMMARY_STEPS = 1
+# Compute # train and warmup steps from batch size
+num_train_steps = 1
+num_warmup_steps = 1
+BERT_MODEL_HUB = "https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1"
+
+def create_tokenizer_from_hub_module():
+    """Get the vocab file and casing info from the Hub module."""
+    with tf.Graph().as_default():
+        bert_module = hub.Module(BERT_MODEL_HUB)
+        tokenization_info = bert_module(signature="tokenization_info", as_dict=True)
+        with tf.Session() as sess:
+            vocab_file, do_lower_case = sess.run([tokenization_info["vocab_file"],
+                                            tokenization_info["do_lower_case"]])
+
+    return bert.tokenization.FullTokenizer(
+      vocab_file=vocab_file, do_lower_case=do_lower_case)
+
+tokenizer = create_tokenizer_from_hub_module()
+if not(os.path.exists('bert')):
+        os.makedirs('bert')
 
 
-# Create an input function for training. drop_remainder = True for using TPUs.
-train_input_fn = bert.run_classifier.input_fn_builder(
-    features=train_features,
-    seq_length=MAX_SEQ_LENGTH,
-    is_training=True,
-    drop_remainder=False)
-test_input_fn = run_classifier.input_fn_builder(
-    features=test_features,
-    seq_length=MAX_SEQ_LENGTH,
-    is_training=False,
-    drop_remainder=False)
-print(f'Beginning Training!')
 
-current_time = datetime.now()
-eval_spec = tf.estimator.EvalSpec(input_fn=test_input_fn,throttle_secs=60,steps=None)
-train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=num_train_steps)
 
-tf.estimator.train_and_evaluate(estimator, train_spec, eval_spec)
+def eval(text,model_dir):
+    model_dir = os.path.join('bert', model_dir1)
+    run_config1 = tf.estimator.RunConfig(
+        model_dir=model_dir1,
+        save_summary_steps=SAVE_SUMMARY_STEPS,
+        save_checkpoints_steps=SAVE_CHECKPOINTS_STEPS)
+    model_fn1 = model_fn_builder(
+      num_labels=len(label_list),
+      learning_rate=LEARNING_RATE,
+      num_train_steps=num_train_steps,
+      num_warmup_steps=num_warmup_steps)
+    estimator1 = tf.estimator.Estimator(
+      model_fn=model_fn1,
+      config=run_config1,
+      params={"batch_size": BATCH_SIZE})
+	# This is where you call your model to get the number of stars output
+    val_InputExamples1 = text.apply(lambda x: bert.run_classifier.InputExample(guid=None,
+                                                                   text_a = x[DATA_COLUMN],
+                                                                   text_b = None,
+                                                                   label = 1), axis = 1)
 
-print("Training took time ", datetime.now() - current_time)
+    val_features1 = bert.run_classifier.convert_examples_to_features(val_InputExamples1, label_list, MAX_SEQ_LENGTH, tokenizer)
+    predict_input_fn1 = run_classifier.input_fn_builder(features=val_features1, seq_length=MAX_SEQ_LENGTH, is_training=False, drop_remainder=False)
+
+    predictions11 = estimator1.predict(predict_input_fn1)
+    pred_list11 = []
+    for pred in predictions11:
+        pred_list11.append(label_list[pred['labels']])
+    pred_list11 = np.array(pred_list11)
+    return pred_list11
+
+if len(sys.argv) > 1:
+    validation_file = sys.argv[1]
+    model_dir = sys.argv[2]
+
+    val = pd.read_json(validation_file,lines=True)
+    predicted = eval(val,model_dir)
+    df = pd.DataFrame({"review_id": val['review_id'], "predicted_stars": predicted})
+    df.to_json("output.jsonl", orient="records",lines=True)
+    print("Output prediction file written")
+
+else:
+	print("No files")

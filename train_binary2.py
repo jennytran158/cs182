@@ -17,10 +17,20 @@ tf.logging.set_verbosity(tf.logging.INFO)
 train_df = pd.read_json('train.json',lines=True).sample(frac=1)
 
 
+
+
+# train_df = pd.read_json('test.jsonl',lines=True)
+
+c = 2
+t3 = train_df[train_df['stars']==c][:60000]#120000-5
+t1 = train_df[train_df['stars']!=c].sample(frac=1)[:t3.shape[0]][:60000]
+t1['stars'] = 1
+train_df = pd.concat([t3,t1]).sample(frac=1).reset_index(drop=True)
+print(train_df['stars'].value_counts())
 train, test = train_test_split(train_df, test_size=0.05, random_state=42)
 DATA_COLUMN = 'text'
 LABEL_COLUMN = 'stars'
-label_list = [1,2,3,4,5]
+label_list = [1,c]
 
 # This is a path to an uncased (all lowercase) version of BERT
 BERT_MODEL_HUB = "https://tfhub.dev/google/bert_uncased_L-12_H-768_A-12/1"
@@ -77,22 +87,25 @@ def create_model(is_predicting, input_ids, input_mask, segment_ids, labels,
         logits = tf.matmul(output_layer, output_weights, transpose_b=True)
         logits = tf.nn.bias_add(logits, output_bias)
         probs = tf.nn.softmax(logits, axis=-1)
-        log_probs = tf.math.log(tf.clip_by_value(probs,1e-10,1.0))
-        embeddings = tf.constant([[1.0,1.0,0.0,0.0,0.0],[1.0,1.0,1.0,0.0,0.0],[0.0,1.0,1.0,1.0,0.0],[0.0,0.0,1.0,1.0,1.0],[0.0,0.0,0.0,1.0,1.0]])
-        embed_labels = tf.nn.embedding_lookup(embeddings, labels)
-        log_sum_probs = tf.math.log(tf.clip_by_value(probs*embed_labels,1e-10,1.0))
-        # Convert labels into one-hot encoding
+        log_probs = tf.nn.log_softmax(logits, axis=-1)
+        # log_probs = tf.math.log(tf.clip_by_value(probs, 1e-10, 1.0))
+#         minus_log_probs = tf.math.log(tf.clip_by_value(1-probs, 1e-10, 1.0))
         one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
+        predicted_labels = tf.squeeze(tf.argmax(log_probs, axis=-1, output_type=tf.int32))
 
+
+
+#         embed = tf.constant([[1,0],[0,1]],tf.float32)
+#         embed_labels = tf.nn.embedding_lookup(embed,labels)
         predicted_labels = tf.squeeze(tf.argmax(log_probs, axis=-1, output_type=tf.int32))
         # If we're predicting, we want predicted labels and the probabiltiies.
         if is_predicting:
-            return (predicted_labels, log_probs)
+            return (predicted_labels, probs)
 
         # If we're train/eval, compute loss between predicted and actual label
-        per_example_loss = -tf.reduce_sum(0.5*log_sum_probs + 0.5*one_hot_labels * log_probs, axis=-1)
+        per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1)
         loss = tf.reduce_mean(per_example_loss)
-        return (loss, predicted_labels, log_probs)
+        return (loss, predicted_labels, probs,predicted_labels)
 # model_fn_builder actually creates our model function
 # using the passed parameters for num_labels, learning_rate, etc.
 def model_fn_builder(num_labels, learning_rate, num_train_steps,
@@ -110,7 +123,7 @@ def model_fn_builder(num_labels, learning_rate, num_train_steps,
 
         # TRAIN and EVAL
         if not is_predicting:
-            (loss, predicted_labels, log_probs) = create_model(
+            (loss, predicted_labels, probs,log) = create_model(
                   is_predicting, input_ids, input_mask, segment_ids, label_ids, num_labels)
 
             train_op = bert.optimization.create_optimizer(
@@ -119,48 +132,19 @@ def model_fn_builder(num_labels, learning_rate, num_train_steps,
             # Calculate evaluation metrics.
             def metric_fn(label_ids, predicted_labels):
                 accuracy = tf.compat.v1.metrics.accuracy(label_ids, predicted_labels)
-#                 true_pos = tf.metrics.true_positives(
-#                     label_ids,
-#                     predicted_labels)
-#                 true_neg = tf.metrics.true_negatives(
-#                     label_ids,
-#                     predicted_labels)
-#                 false_pos = tf.metrics.false_positives(
-#                     label_ids,
-#                     predicted_labels)
-#                 false_neg = tf.metrics.false_negatives(
-#                     label_ids,
-#                     predicted_labels)
-#                 f1_score = tf.contrib.metrics.f1_score(
-#                     label_ids,
-#                     predicted_labels)
-#                 auc = tf.metrics.auc(
-#                     label_ids,
-#                     predicted_labels)
-#                 recall = tf.metrics.recall(
-#                     label_ids,
-#                     predicted_labels)
-#                 precision = tf.metrics.precision(
-#                     label_ids,
-#                     predicted_labels)
                 return {
                       "accuracy": accuracy,
                 }
-#                     "f1_score": f1_score,
-#                     "auc": auc,
-#                     "precision": precision,
-#                     "recall": recall,
-#                     "true_positives": true_pos,
-#                     "true_negatives": true_neg,
-#                     "false_positives": false_pos,
-#                     "false_negatives": false_neg
-#                 }
-
             eval_metrics = metric_fn(label_ids, predicted_labels)
             accuracy = tf.compat.v1.metrics.accuracy(label_ids, predicted_labels)
             tf.summary.scalar('accuracy', accuracy[1])
             if mode == tf.estimator.ModeKeys.TRAIN:
-                training_hooks=[tf.estimator.LoggingTensorHook(tensors={'accuracy':accuracy[1]}, every_n_iter=SAVE_SUMMARY_STEPS)]
+                probs
+                training_hooks=[
+                    tf.estimator.LoggingTensorHook(
+                    tensors={'accuracy':accuracy[1],"probs":probs,"log":log,"labels":label_ids
+                            }, every_n_iter=SAVE_SUMMARY_STEPS)
+                ]
                 return tf.estimator.EstimatorSpec(mode=mode,
                   loss=loss,
                   train_op=train_op,
@@ -171,10 +155,10 @@ def model_fn_builder(num_labels, learning_rate, num_train_steps,
                   loss=loss,
                   eval_metric_ops=eval_metrics)
         else:
-            (predicted_labels, log_probs) = create_model(
+            (predicted_labels, p) = create_model(
         is_predicting, input_ids, input_mask, segment_ids, label_ids, num_labels)
             predictions = {
-              'probabilities': log_probs,
+              'probabilities': p,
               'labels': predicted_labels
             }
             return tf.estimator.EstimatorSpec(mode, predictions=predictions)
@@ -213,13 +197,18 @@ WARMUP_PROPORTION = 0.1
 SAVE_CHECKPOINTS_STEPS = 500
 SAVE_SUMMARY_STEPS = 100
 # Compute # train and warmup steps from batch size
+# train1_step = 30013
 train1_step = 0
+
+
 num_train_steps = int(len(train_features) / BATCH_SIZE * NUM_TRAIN_EPOCHS) +train1_step
 num_warmup_steps = int(num_train_steps * WARMUP_PROPORTION)
 # Specify outpit directory and number of checkpoint steps to save
 if not(os.path.exists('bert')):
         os.makedirs('bert')
-model_dir = "train_modifiedentropy"
+model_dir = "binary_class"+str(c)
+# model_dir = "test"
+
 model_dir = os.path.join('bert', model_dir)
 if not(os.path.exists(model_dir)):
     os.makedirs(model_dir)

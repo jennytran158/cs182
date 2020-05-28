@@ -14,7 +14,7 @@ import time
 logger = tf.get_logger()
 logger.propagate = False
 tf.logging.set_verbosity(tf.logging.INFO)
-train_df = pd.read_json('train1.json')
+train_df = pd.read_json('train.json',lines=True).sample(frac=1)
 
 train, test = train_test_split(train_df, test_size=0.05, random_state=42)
 DATA_COLUMN = 'text'
@@ -32,7 +32,7 @@ def create_tokenizer_from_hub_module():
         with tf.Session() as sess:
             vocab_file, do_lower_case = sess.run([tokenization_info["vocab_file"],
                                             tokenization_info["do_lower_case"]])
-      
+
     return bert.tokenization.FullTokenizer(
       vocab_file=vocab_file, do_lower_case=do_lower_case)
 
@@ -103,7 +103,7 @@ def model_fn_builder(num_labels, learning_rate, num_train_steps,
         label_ids = features["label_ids"]
 
         is_predicting = (mode == tf.estimator.ModeKeys.PREDICT)
-    
+
         # TRAIN and EVAL
         if not is_predicting:
             (loss, predicted_labels, log_probs) = create_model(
@@ -112,7 +112,7 @@ def model_fn_builder(num_labels, learning_rate, num_train_steps,
             train_op = bert.optimization.create_optimizer(
                 loss, learning_rate, num_train_steps, num_warmup_steps, use_tpu=False)
 
-            # Calculate evaluation metrics. 
+            # Calculate evaluation metrics.
             def metric_fn(label_ids, predicted_labels):
                 accuracy = tf.compat.v1.metrics.accuracy(label_ids, predicted_labels)
 #                 true_pos = tf.metrics.true_positives(
@@ -120,10 +120,10 @@ def model_fn_builder(num_labels, learning_rate, num_train_steps,
 #                     predicted_labels)
 #                 true_neg = tf.metrics.true_negatives(
 #                     label_ids,
-#                     predicted_labels)   
+#                     predicted_labels)
 #                 false_pos = tf.metrics.false_positives(
 #                     label_ids,
-#                     predicted_labels)  
+#                     predicted_labels)
 #                 false_neg = tf.metrics.false_negatives(
 #                     label_ids,
 #                     predicted_labels)
@@ -138,7 +138,7 @@ def model_fn_builder(num_labels, learning_rate, num_train_steps,
 #                     predicted_labels)
 #                 precision = tf.metrics.precision(
 #                     label_ids,
-#                     predicted_labels) 
+#                     predicted_labels)
                 return {
                       "accuracy": accuracy,
                 }
@@ -151,7 +151,7 @@ def model_fn_builder(num_labels, learning_rate, num_train_steps,
 #                     "false_positives": false_pos,
 #                     "false_negatives": false_neg
 #                 }
-            
+
             eval_metrics = metric_fn(label_ids, predicted_labels)
             accuracy = tf.compat.v1.metrics.accuracy(label_ids, predicted_labels)
             tf.summary.scalar('accuracy', accuracy[1])
@@ -182,8 +182,8 @@ MAX_SEQ_LENGTH = 128
 
 # Use the InputExample class from BERT's run_classifier code to create examples from the data
 train_InputExamples = train_df.apply(lambda x: bert.run_classifier.InputExample(guid=None, # Globally unique ID for bookkeeping, unused in this example
-                                                                   text_a = x[DATA_COLUMN], 
-                                                                   text_b = None, 
+                                                                   text_a = x[DATA_COLUMN],
+                                                                   text_b = None,
                                                                    label = x[LABEL_COLUMN]), axis = 1)
 
 
@@ -191,9 +191,9 @@ train_InputExamples = train_df.apply(lambda x: bert.run_classifier.InputExample(
 # Convert our train and test features to InputFeatures that BERT understands.
 train_features = bert.run_classifier.convert_examples_to_features(train_InputExamples, label_list, MAX_SEQ_LENGTH, tokenizer)
 
-test_InputExamples = test.apply(lambda x: bert.run_classifier.InputExample(guid=None, 
-                                                                   text_a = x[DATA_COLUMN], 
-                                                                   text_b = None, 
+test_InputExamples = test.apply(lambda x: bert.run_classifier.InputExample(guid=None,
+                                                                   text_a = x[DATA_COLUMN],
+                                                                   text_b = None,
                                                                    label = x[LABEL_COLUMN]), axis = 1)
 
 test_features = bert.run_classifier.convert_examples_to_features(test_InputExamples, label_list, MAX_SEQ_LENGTH, tokenizer)
@@ -202,7 +202,7 @@ test_features = bert.run_classifier.convert_examples_to_features(test_InputExamp
 BATCH_SIZE = 16
 LEARNING_RATE = 2e-5
 NUM_TRAIN_EPOCHS = 2.0
-# Warmup is a period of time where hte learning rate 
+# Warmup is a period of time where hte learning rate
 # is small and gradually increases--usually helps training.
 WARMUP_PROPORTION = 0.1
 # Model configs
@@ -214,7 +214,7 @@ num_warmup_steps = int(num_train_steps * WARMUP_PROPORTION)
 # Specify outpit directory and number of checkpoint steps to save
 if not(os.path.exists('bert')):
         os.makedirs('bert')
-model_dir = time.strftime("%d-%m-%Y_"+str(LEARNING_RATE))
+model_dir = "train_crossentropy"
 model_dir = os.path.join('bert', model_dir)
 if not(os.path.exists(model_dir)):
     os.makedirs(model_dir)

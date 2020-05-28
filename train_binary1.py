@@ -14,9 +14,8 @@ import time
 logger = tf.get_logger()
 logger.propagate = False
 tf.logging.set_verbosity(tf.logging.INFO)
-train_df1 = pd.read_json('train1.json')
-train_df2 = pd.read_json('train2.json')
-train_df = pd.concat([train_df1,train_df2])
+train_df = pd.read_json('train.json',lines=True).sample(frac=1)
+
 
 
 # train_df = pd.read_json('test.jsonl',lines=True)
@@ -43,7 +42,7 @@ def create_tokenizer_from_hub_module():
         with tf.Session() as sess:
             vocab_file, do_lower_case = sess.run([tokenization_info["vocab_file"],
                                             tokenization_info["do_lower_case"]])
-      
+
     return bert.tokenization.FullTokenizer(
       vocab_file=vocab_file, do_lower_case=do_lower_case)
 
@@ -120,7 +119,7 @@ def model_fn_builder(num_labels, learning_rate, num_train_steps,
         label_ids = features["label_ids"]
 
         is_predicting = (mode == tf.estimator.ModeKeys.PREDICT)
-    
+
         # TRAIN and EVAL
         if not is_predicting:
             (loss, predicted_labels, probs,log) = create_model(
@@ -129,7 +128,7 @@ def model_fn_builder(num_labels, learning_rate, num_train_steps,
             train_op = bert.optimization.create_optimizer(
                 loss, learning_rate, num_train_steps, num_warmup_steps, use_tpu=False)
 
-            # Calculate evaluation metrics. 
+            # Calculate evaluation metrics.
             def metric_fn(label_ids, predicted_labels):
                 accuracy = tf.compat.v1.metrics.accuracy(label_ids, predicted_labels)
                 return {
@@ -170,8 +169,8 @@ MAX_SEQ_LENGTH = 128
 
 # Use the InputExample class from BERT's run_classifier code to create examples from the data
 train_InputExamples = train_df.apply(lambda x: bert.run_classifier.InputExample(guid=None, # Globally unique ID for bookkeeping, unused in this example
-                                                                   text_a = x[DATA_COLUMN], 
-                                                                   text_b = None, 
+                                                                   text_a = x[DATA_COLUMN],
+                                                                   text_b = None,
                                                                    label = x[LABEL_COLUMN]), axis = 1)
 
 
@@ -179,9 +178,9 @@ train_InputExamples = train_df.apply(lambda x: bert.run_classifier.InputExample(
 # Convert our train and test features to InputFeatures that BERT understands.
 train_features = bert.run_classifier.convert_examples_to_features(train_InputExamples, label_list, MAX_SEQ_LENGTH, tokenizer)
 
-test_InputExamples = test.apply(lambda x: bert.run_classifier.InputExample(guid=None, 
-                                                                   text_a = x[DATA_COLUMN], 
-                                                                   text_b = None, 
+test_InputExamples = test.apply(lambda x: bert.run_classifier.InputExample(guid=None,
+                                                                   text_a = x[DATA_COLUMN],
+                                                                   text_b = None,
                                                                    label = x[LABEL_COLUMN]), axis = 1)
 
 test_features = bert.run_classifier.convert_examples_to_features(test_InputExamples, label_list, MAX_SEQ_LENGTH, tokenizer)
@@ -190,7 +189,7 @@ test_features = bert.run_classifier.convert_examples_to_features(test_InputExamp
 BATCH_SIZE = 16
 LEARNING_RATE = 2e-5
 NUM_TRAIN_EPOCHS = 2.0
-# Warmup is a period of time where hte learning rate 
+# Warmup is a period of time where hte learning rate
 # is small and gradually increases--usually helps training.
 WARMUP_PROPORTION = 0.1
 # Model configs
@@ -202,11 +201,11 @@ train1_step = 0
 
 
 num_train_steps = int(len(train_features) / BATCH_SIZE * NUM_TRAIN_EPOCHS) +train1_step
-num_warmup_steps = int(num_train_steps * WARMUP_PROPORTION) 
+num_warmup_steps = int(num_train_steps * WARMUP_PROPORTION)
 # Specify outpit directory and number of checkpoint steps to save
 if not(os.path.exists('bert')):
         os.makedirs('bert')
-model_dir = "binary_class"+str(c)
+model_dir = "train_binary"+str(c)
 # model_dir = "test"
 
 model_dir = os.path.join('bert', model_dir)
