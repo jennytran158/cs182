@@ -17,33 +17,9 @@ python test_submission.py <input.jsonl>
 
 
 Training:
+1. Rename the training file to train.jsonl 
+2. Run:
+python train_<classifier_name>.py
 
-For all models but Binary Classifier Model:
-1. Modify 
-train_df = pd.read_json('train1.json')
-to
-train_df = pd.read_json('<file_name>.json')
-2. run:
-python train_<model_name>.py
-
-
-For Binary Classifier Model:
-1. Modify 
-train_df1 = pd.read_json('train1.json')
-to
-train_df1 = pd.read_json('<file_name>.json')
-2. Modify
-train_df2 = pd.read_json('train2.json')
-to 
-train_df2 = pd.read_json('<file_name>.json')
-3. Modify
-c = 5
-to 
-c = <assigned_category>
-4. Run for each label but 1
-python train_binary.py
-
-5. Run to train binary class for label 1:
-python train_binary1.py
 
 
