@@ -1,4 +1,4 @@
-I did this project in a group of 3 people.  To read my part in the report click [here](https://github.com/jennytran158/cs182/blob/master/182bert.pdf)!
+I did this project in a group of 3 people.  To read my part in the report click [here](https://github.com/jennytran158/cs182/blob/master/182bert_a.pdf)!
 
 To see the whole report click [here](https://github.com/jennytran158/cs182/blob/master/CS182_Writeup.pdf) and click [github](https://github.com/vsrin1/CS182-Final-Project) for other model files in the report. 
 
