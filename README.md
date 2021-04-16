@@ -1,6 +1,6 @@
-I did this project in a group of 3 people.  To read my part in the report click [here](https://github.com/jennytran158/cs182/blob/master/182bert_a.pdf)!
+My part in the report click [here](https://drive.google.com/file/d/1wQzzH6aE1jGRcTayJGGO0S4l3NhFgXQN/view?usp=sharing)!
 
-To see the whole report click [here](https://github.com/jennytran158/cs182/blob/master/CS182_Writeup.pdf) and click [github](https://github.com/vsrin1/CS182-Final-Project) for other model files in the report. 
+To see the whole report (I did this project in a group of 3) click [here](https://github.com/jennytran158/cs182/blob/master/CS182_Writeup.pdf) and click [github](https://github.com/vsrin1/CS182-Final-Project) for other model files in the report. 
 
 ### Predict using initial model:
 1. Download model [here](https://drive.google.com/drive/u/0/folders/11jn8qVLVRMjwmv-REYTimGLYdsn76nAs)
